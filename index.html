@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <script src="https://cesium.com/downloads/cesiumjs/releases/1.117/Build/Cesium/Cesium.js"></script>
+        <link
+            href="https://cesium.com/downloads/cesiumjs/releases/1.117/Build/Cesium/Widgets/widgets.css"
+            rel="stylesheet"
+        />
+
+        <link href="style.css" rel="stylesheet" />
+    </head>
+    <body>
+        <div id="cesiumContainer" class="fullSize"></div>
+        <div id="contextMenu">
+            <button id="increaseAltitude">Increase Altitude</button>
+            <button id="decreaseAltitude">Decrease Altitude</button>
+            <button id="changeColor">Change Color</button>
+            <button id="fastForward">Fast Forward</button>
+        </div>
+        <script>
+            Cesium.Ion.defaultAccessToken =
+                "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI2MDhiNjkzNC1jM2ZlLTRmOTctOGExMy0wNjFhOTdmM2I1ZDYiLCJpZCI6MjE4NjE1LCJpYXQiOjE3MTY5NjQ0ODB9.hnUn9M9DQDqY-auSo1-vUgTaRSMZvfwlNFg29OOpJaI";
+            const viewer = new Cesium.Viewer("cesiumContainer", {
+                infoBox: false,
+                selectionIndicator: false,
+                shadows: true,
+                shouldAnimate: true,
+            });
+
+            // Define the start and end points
+            let altitude = 100000;
+            const riyadh = Cesium.Cartesian3.fromDegrees(
+                46.712,
+                24.633,
+                altitude
+            );
+            const amman = Cesium.Cartesian3.fromDegrees(
+                35.933,
+                31.95,
+                altitude
+            );
+
+            // Define direction and heading of plane
+            const heading = Cesium.Math.toRadians(-145);
+            const hpr = new Cesium.HeadingPitchRoll(heading, 0, 0);
+            const orientation = Cesium.Transforms.headingPitchRollQuaternion(
+                riyadh,
+                hpr
+            );
+            const airplane = "./assets/Cesium_Air.glb";
+
+            // Append plane to map
+            const plane = viewer.entities.add({
+                name: airplane,
+                position: new Cesium.SampledPositionProperty(),
+                orientation: orientation,
+                model: {
+                    uri: airplane,
+                    minimumPixelSize: 128,
+                    maximumScale: 20000,
+                },
+            });
+
+            // Initial altitude and color
+            let planeColor = Cesium.Color.WHITE;
+
+            // Path and movement
+            const property = plane.position;
+            const startTime = Cesium.JulianDate.now();
+            const endTime = Cesium.JulianDate.addSeconds(
+                startTime,
+                700,
+                new Cesium.JulianDate()
+            );
+            property.addSample(startTime, riyadh);
+            property.addSample(endTime, amman);
+
+            viewer.clock.startTime = startTime.clone();
+            viewer.clock.stopTime = endTime.clone();
+            viewer.clock.currentTime = startTime.clone();
+            viewer.clock.clockRange = Cesium.ClockRange.LOOP_STOP; // Loop at the end
+            viewer.clock.multiplier = 10; // Speed up the animation
+
+            plane.position = property;
+            plane.model.color = new Cesium.ColorMaterialProperty(planeColor);
+            let fastForward = false;
+
+            // View from above the plane
+            viewer.trackedEntity = plane;
+            // Add event handler for clicks
+            const handler = new Cesium.ScreenSpaceEventHandler(
+                viewer.scene.canvas
+            );
+            handler.setInputAction(function (movement) {
+                const pickedObject = viewer.scene.pick(movement.position);
+                if (Cesium.defined(pickedObject) && pickedObject.id === plane) {
+                    const contextMenu = document.getElementById("contextMenu");
+                    contextMenu.style.display = "block";
+                    contextMenu.style.left = movement.position.x + "px";
+                    contextMenu.style.top = movement.position.y + "px";
+                } else {
+                    document.getElementById("contextMenu").style.display =
+                        "none";
+                }
+            }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
+
+            handler.setInputAction(function (movement) {
+                fastForward = !fastForward;
+                viewer.clock.multiplier = fastForward ? 100 : 10;
+            }, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
+
+            // Button actions
+            document.getElementById("increaseAltitude").onclick = () => {
+                altitude += 10000;
+                updateAltitude();
+                hideContextMenu();
+            };
+
+            document.getElementById("decreaseAltitude").onclick = () => {
+                altitude -= 10000;
+                updateAltitude();
+                hideContextMenu();
+            };
+
+            document.getElementById("changeColor").onclick = () => {
+                planeColor = Cesium.Color.fromRandom({ alpha: 1.0 });
+                console.log(planeColor);
+                plane.model.color = planeColor;
+                hideContextMenu();
+            };
+
+            document.getElementById("fastForward").onclick = () => {
+                fastForward = !fastForward;
+                viewer.clock.multiplier = fastForward ? 100 : 10;
+                hideContextMenu();
+            };
+
+            // Update altitude function
+            function updateAltitude() {
+                const currentTime = viewer.clock.currentTime;
+                const position = plane.position.getValue(currentTime);
+                const cartographic =
+                    Cesium.Cartographic.fromCartesian(position);
+                cartographic.height = altitude;
+                const updatedPosition = Cesium.Cartesian3.fromRadians(
+                    cartographic.longitude,
+                    cartographic.latitude,
+                    cartographic.height
+                );
+                property.addSample(currentTime, updatedPosition); // Update the path property
+            }
+
+            // Hide context menu
+            function hideContextMenu() {
+                document.getElementById("contextMenu").style.display = "none";
+            }
+
+            // Notification on arrival
+            viewer.clock.onTick.addEventListener(() => {
+                const distance = Cesium.Cartesian3.distance(
+                    plane.position.getValue(viewer.clock.currentTime),
+                    amman
+                );
+                if (distance < 5000) {
+                    alert("Plane has arrived in Amman!");
+                    viewer.clock.onTick.removeEventListener(() => {
+                        return 0;
+                    });
+                }
+            });
+        </script>
+    </body>
+</html>

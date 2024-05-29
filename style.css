@@ -1,0 +1,23 @@
+html,
+body {
+  overflow: hidden;
+  margin: 0px;
+  padding: 0px;
+  height: 100%;
+}
+#cesiumContainer {
+  height: 100%;
+}
+
+#contextMenu {
+  display: none;
+  position: absolute;
+  background: rgba(42, 42, 42, 0.8);
+  color: white;
+  padding: 10px;
+  border-radius: 5px;
+}
+#contextMenu button { 
+  display: block; 
+  margin: 5px 0; 
+}
