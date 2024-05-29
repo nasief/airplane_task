@@ -1,6 +1,10 @@
-Cesium Template App
+Airplane Task
 ===================
 
-This is a template for making Cesium apps. Click on `index.html` on the left to see the code.
+Run Options
+-----------
+This project can be run through either one of the following
 
-New to Cesium? Visit our [learning center](http://cesium.com/docs) to get started.
+1. docker-compose up --build
+
+2. npm install and npm run
